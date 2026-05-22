@@ -1,88 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SUPERDUPERCOOL Proxy</title>
-    <style>
-        body { font-family: Arial; text-align: center; padding: 50px; }
-        input { padding: 10px; width: 300px; font-size: 16px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-        #result { margin-top: 20px; padding: 20px; border: 1px solid #ccc; min-height: 200px; text-align: left; overflow-wrap: break-word; word-break: break-all; }
-        .error { color: red; }
-        .success { color: green; }
-        #status { margin-top: 10px; font-size: 12px; color: #666; }
-    </style>
+    <meta charset="UTF-8">
+    <title>Simple Client-Side Proxy</title>
 </head>
 <body>
-    <h1>SUPERDUPERCOOL Proxy</h1>
-    <input type="text" id="url" placeholder="Enter URL (https://example.com)" value="https://example.com">
-    <button onclick="fetchUrl()">Fetch</button>
-    <div id="status"></div>
-    <div id="result"></div>
+    <div id="proxy-container">Loading website...</div>
 
     <script>
-        const proxies = [
-            { name: 'AllOrigins', fetch: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, parseJson: true },
-            { name: 'CORS Anywhere', fetch: (url) => `https://cors-anywhere.herokuapp.com/${url}`, parseJson: false },
-            { name: 'ThingProxy', fetch: (url) => `https://thingproxy.freehostingoo.com/fetch/${encodeURIComponent(url)}`, parseJson: false },
-            { name: 'CodeTabs', fetch: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, parseJson: false }
-        ];
+        // Public CORS proxy to bypass browser security blocks
+        const corsProxy = "https://herokuapp.com"; 
+        const targetUrl = "https://example.com"; // Replace with the site you want to load
 
-        async function fetchUrl() {
-            const url = document.getElementById('url').value;
-            const result = document.getElementById('result');
-            const status = document.getElementById('status');
-            
-            if (!url) {
-                result.textContent = 'Please enter a URL';
-                result.className = 'error';
-                status.textContent = '';
-                return;
-            }
+        async function loadProxiedPage() {
+            try {
+                // Fetch the site through a CORS proxy
+                const response = await fetch(corsProxy + targetUrl);
+                const htmlContent = await response.text();
 
-            result.textContent = 'Loading...';
-            status.textContent = 'Trying proxies...';
-            result.className = '';
-            
-            for (let i = 0; i < proxies.length; i++) {
-                const proxy = proxies[i];
-                status.textContent = `Attempting: ${proxy.name} (${i + 1}/${proxies.length})...`;
-                
-                try {
-                    const proxyUrl = proxy.fetch(url);
-                    const response = await fetch(proxyUrl);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    
-                    let data;
-                    if (proxy.parseJson) {
-                        data = await response.json();
-                        result.innerHTML = '<pre>' + escapeHtml(data.contents) + '</pre>';
-                    } else {
-                        data = await response.text();
-                        result.innerHTML = '<pre>' + escapeHtml(data) + '</pre>';
-                    }
-                    
-                    result.className = 'success';
-                    status.textContent = `✓ Success with ${proxy.name}!`;
-                    return;
-                } catch (error) {
-                    status.textContent = `✗ ${proxy.name} failed: ${error.message}. Trying next...`;
-                    continue;
-                }
+                // Clear the default loading text
+                document.body.innerHTML = ""; 
+
+                // FIX: Inject the content directly into the document so the browser renders it
+                document.write(htmlContent);
+                document.close(); 
+            } catch (error) {
+                document.getElementById("proxy-container").innerText = "Error loading page: " + error.message;
             }
-            
-            // All proxies failed
-            result.textContent = 'Error: All proxy services failed.\n\nPossible reasons:\n- All proxy services are blocked\n- The target website is blocking requests\n- Your internet connection is down\n\nTip: Try a different URL or check your network settings.';
-            result.className = 'error';
-            status.textContent = '✗ All proxy services exhausted';
         }
 
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text.replace(/[&<>"']/g, m => map[m]);
-        }
+        loadProxiedPage();
     </script>
 </body>
 </html>
