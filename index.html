@@ -1,35 +1,102 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Simple Client-Side Proxy</title>
+    <title>SUPERDUPERCOOL Proxy</title>
+    <style>
+        /* Modernized full-screen layout to mimic a real proxy browser */
+        body { font-family: Arial; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+        #control-bar { padding: 15px; background: #f4f4f4; border-bottom: 1px solid #ccc; text-align: center; }
+        input { padding: 10px; width: 40%; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+        #status { margin-top: 5px; font-size: 12px; color: #666; }
+        /* The iframe will house the actual rendered website */
+        #proxy-frame { flex-grow: 1; border: none; width: 100%; height: 100%; display: none; }
+        #error-msg { margin: 50px auto; max-width: 600px; padding: 20px; border: 1px solid red; color: red; display: none; white-space: pre-wrap; text-align: left;}
+    </style>
 </head>
 <body>
-    <div id="proxy-container">Loading website...</div>
+    <div id="control-bar">
+        <h1>SUPERDUPERCOOL Proxy</h1>
+        <input type="text" id="url" placeholder="Enter URL (https://example.com)" value="https://example.com">
+        <button onclick="fetchUrl()">Go</button>
+        <div id="status"></div>
+    </div>
+    
+    <!-- This iframe renders the site contents natively -->
+    <iframe id="proxy-frame"></iframe>
+    <div id="error-msg"></div>
 
     <script>
-        // Public CORS proxy to bypass browser security blocks
-        const corsProxy = "https://herokuapp.com"; 
-        const targetUrl = "https://example.com"; // Replace with the site you want to load
+        const proxies = [
+            { name: 'AllOrigins', fetch: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, parseJson: true },
+            { name: 'CORS Anywhere', fetch: (url) => `https://cors-anywhere.herokuapp.com/${url}`, parseJson: false },
+            { name: 'ThingProxy', fetch: (url) => `https://thingproxy.freehostingoo.com/fetch/${encodeURIComponent(url)}`, parseJson: false },
+            { name: 'CodeTabs', fetch: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, parseJson: false }
+        ];
 
-        async function loadProxiedPage() {
-            try {
-                // Fetch the site through a CORS proxy
-                const response = await fetch(corsProxy + targetUrl);
-                const htmlContent = await response.text();
-
-                // Clear the default loading text
-                document.body.innerHTML = ""; 
-
-                // FIX: Inject the content directly into the document so the browser renders it
-                document.write(htmlContent);
-                document.close(); 
-            } catch (error) {
-                document.getElementById("proxy-container").innerText = "Error loading page: " + error.message;
+        async function fetchUrl() {
+            let url = document.getElementById('url').value.trim();
+            const iframe = document.getElementById('proxy-frame');
+            const errorMsg = document.getElementById('error-msg');
+            const status = document.getElementById('status');
+            
+            if (!url) {
+                alert('Please enter a URL');
+                return;
             }
-        }
 
-        loadProxiedPage();
+            // Ensure the URL starts with http:// or https://
+            if (!/^https?:\/\//i.test(url)) {
+                url = 'https://' + url;
+                document.getElementById('url').value = url;
+            }
+
+            // Hide old data/errors and show loading
+            iframe.style.display = 'none';
+            errorMsg.style.display = 'none';
+            status.textContent = 'Trying proxies...';
+            
+            for (let i = 0; i < proxies.length; i++) {
+                const proxy = proxies[i];
+                status.textContent = `Attempting: ${proxy.name} (${i + 1}/${proxies.length})...`;
+                
+                try {
+                    const proxyUrl = proxy.fetch(url);
+                    const response = await fetch(proxyUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    let htmlContent = '';
+                    if (proxy.parseJson) {
+                        const data = await response.json();
+                        htmlContent = data.contents;
+                    } else {
+                        htmlContent = await response.text();
+                    }
+                    
+                    // FIX: Inject the raw code directly into the iframe document to render it
+                    iframe.style.display = 'block';
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    iframeDoc.open();
+                    iframeDoc.write(htmlContent);
+                    iframeDoc.close();
+                    
+                    status.textContent = `✓ Success with ${proxy.name}!`;
+                    return;
+                } catch (error) {
+                    status.textContent = `✗ ${proxy.name} failed: ${error.message}. Trying next...`;
+                    continue;
+                }
+            }
+            
+            // All proxies failed
+            errorMsg.textContent = 'Error: All proxy services failed.\n\nPossible reasons:\n- The proxy services are blocked by your administrator.\n- The website is blocking outside requests.\n\nTip: Test it with a basic site like "https://example.com" first.';
+            errorMsg.style.display = 'block';
+            status.textContent = '✗ All proxy services exhausted';
+        }
     </script>
 </body>
 </html>
